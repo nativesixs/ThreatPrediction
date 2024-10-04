@@ -43,15 +43,27 @@ const Home = ({ socket }) => {
   // Get the latest time from the times array, if available
   const latestTime = times[times.length - 1];
 
+  // Function to reset the times array
+  const resetTime = () => {
+    setTimes([]); // Clear the times array
+  };
+
   return (
     <Box p={5}>
       <Heading mb={4}>Home Page</Heading>
       <p>{data}</p>
+      <Button onClick={resetTime} colorScheme='teal' mt={4}>
+        Reset
+      </Button>
 
       {/* Display the latest time as a single element */}
       <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
         Current Time: {latestTime || 'Waiting for time...'}
       </p>
+
+      <Button colorScheme="teal" mt={4}>
+        <Link to="/help">Go to Help</Link>
+      </Button>
 
       <h3>Received Times:</h3>
       <ul>
@@ -60,9 +72,6 @@ const Home = ({ socket }) => {
         ))}
       </ul>
 
-      <Button colorScheme="teal" mt={4}>
-        <Link to="/help">Go to Help</Link>
-      </Button>
     </Box>
   );
 };
