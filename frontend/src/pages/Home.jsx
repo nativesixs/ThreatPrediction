@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 const Home = ({ socket }) => {
   const [data, setData] = useState('');
   const [times, setTimes] = useState([]); // State to hold the times
+  const [traffic, setTraffic] = useState([]); // State to hold network traffic
 
   useEffect(() => {
     // Fetch initial data from the server
@@ -16,13 +17,19 @@ const Home = ({ socket }) => {
 
     fetchData();
 
-    // Emit a request to start sending the current time
+    // Emit a request to start sending the current time and traffic
     socket.emit('request_time');
 
     // Listen for 'time' events from the server
     socket.on('time', (data) => {
       // Update times state and keep the latest time at the end
       setTimes(prevTimes => [...prevTimes, data.time]); // Update times state
+    });
+
+    // Listen for 'traffic' events from the server
+    socket.on('traffic', (data) => {
+      // Update traffic state with the new traffic data
+      setTraffic(prevTraffic => [...prevTraffic, data.traffic]);
     });
 
     // Handle completion message
@@ -33,10 +40,12 @@ const Home = ({ socket }) => {
     return () => {
       // Cleanup on component unmount
       socket.off('time'); // Cleanup the listener on component unmount
+      socket.off('traffic'); // Cleanup the traffic listener
       socket.off('complete');
 
-      // Reset times state to start fresh when navigating back
+      // Reset states to start fresh when navigating back
       setTimes([]); // Resetting the times
+      setTraffic([]); // Resetting the traffic data
     };
   }, [socket]); // Re-run effect if socket changes
 
@@ -48,12 +57,20 @@ const Home = ({ socket }) => {
     setTimes([]); // Clear the times array
   };
 
+  // Function to reset the traffic array
+  const resetTraffic = () => {
+    setTraffic([]); // Clear the traffic array
+  };
+
   return (
     <Box p={5}>
       <Heading mb={4}>Home Page</Heading>
       <p>{data}</p>
       <Button onClick={resetTime} colorScheme='teal' mt={4}>
-        Reset
+        Reset Times
+      </Button>
+      <Button onClick={resetTraffic} colorScheme='teal' mt={4}>
+        Reset Traffic
       </Button>
 
       {/* Display the latest time as a single element */}
@@ -72,6 +89,12 @@ const Home = ({ socket }) => {
         ))}
       </ul>
 
+      <h3>Network Traffic:</h3>
+      <ul>
+        {traffic.map((trafficData, index) => (
+          <li key={index}>{trafficData}</li> // Display each traffic entry in a list
+        ))}
+      </ul>
     </Box>
   );
 };
