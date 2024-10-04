@@ -48,4 +48,4 @@ def handle_message(data):
     emit('response', {'data': 'Message received!'})
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000,allow_unsafe_werkzeug=True) #todo - remove unsafe werkzeug for prod
