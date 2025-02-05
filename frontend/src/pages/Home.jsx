@@ -4,73 +4,94 @@ import { Link } from 'react-router-dom';
 
 const Home = ({ socket }) => {
   const [data, setData] = useState('');
-  const [times, setTimes] = useState([]); // State to hold the times
-  const [traffic, setTraffic] = useState([]); // State to hold network traffic
+  const [times, setTimes] = useState([]);
+  const [traffic, setTraffic] = useState([]);
 
   useEffect(() => {
-    // Fetch initial data from the server
     const fetchData = async () => {
       const response = await fetch('http://localhost:5000/home');
-      const result = await response.text(); // Get the response as text
-      setData(result); // Set the initial data
+      const result = await response.text();
+      setData(result);
     };
 
     fetchData();
 
-    // Emit a request to start sending the current time and traffic
-    socket.emit('request_time');
-
-    // Listen for 'time' events from the server
     socket.on('time', (data) => {
-      // Update times state and keep the latest time at the end
-      setTimes(prevTimes => [...prevTimes, data.time]); // Update times state
+      setTimes(prevTimes => [...prevTimes, data.time]);
     });
 
-    // Listen for 'traffic' events from the server
     socket.on('traffic', (data) => {
-      // Update traffic state with the new traffic data
       setTraffic(prevTraffic => [...prevTraffic, data.traffic]);
     });
 
-    // Handle completion message
     socket.on('complete', (data) => {
-      console.log(data.data); // Log completion message
+      console.log(data.data);
+      setTraffic(prevTraffic => [...prevTraffic, data.data]);
     });
 
     return () => {
-      // Cleanup on component unmount
-      socket.off('time'); // Cleanup the listener on component unmount
-      socket.off('traffic'); // Cleanup the traffic listener
+      socket.off('time');
+      socket.off('traffic');
       socket.off('complete');
 
-      // Reset states to start fresh when navigating back
-      setTimes([]); // Resetting the times
-      setTraffic([]); // Resetting the traffic data
+      setTimes([]);
+      setTraffic([]);
     };
-  }, [socket]); // Re-run effect if socket changes
+  }, [socket]);
 
-  // Get the latest time from the times array, if available
   const latestTime = times[times.length - 1];
 
-  // Function to reset the times array
   const resetTime = () => {
-    setTimes([]); // Clear the times array
+    setTimes([]);
   };
 
-  // Function to reset the traffic array
   const resetTraffic = () => {
-    setTraffic([]); // Clear the traffic array
+    setTraffic([]);
+  };
+
+  const startTime = () => {
+    socket.emit('request_time');
+  };
+
+  const stopTime = () => {
+    socket.emit('stop_time');
+  };
+
+  const startSniffing = () => {
+    socket.emit('start_sniffing');
+  };
+
+  const stopSniffing = () => {
+    socket.emit('stop_sniffing');
+  };
+
+  const resetSniffing = () => {
+    resetTraffic();
+    socket.emit('reset_sniffing');
   };
 
   return (
     <Box p={5}>
       <Heading mb={4}>Home Page</Heading>
       <p>{data}</p>
-      <Button onClick={resetTime} colorScheme='teal' mt={4}>
-        Reset Times
+
+      <Button onClick={startTime} colorScheme="teal" mt={4}>
+        Start Time
       </Button>
-      <Button onClick={resetTraffic} colorScheme='teal' mt={4}>
-        Reset Traffic
+      <Button onClick={stopTime} colorScheme="red" mt={4}>
+        Stop Time
+      </Button>
+      <Button onClick={startSniffing} colorScheme="teal" mt={4}>
+        Start Sniffing
+      </Button>
+      <Button onClick={stopSniffing} colorScheme="red" mt={4}>
+        Stop Sniffing
+      </Button>
+      <Button onClick={resetTime} colorScheme='teal' mt={4}>
+        Reset Time
+      </Button>
+      <Button onClick={resetSniffing} colorScheme="teal" mt={4}>
+        Reset Sniffing
       </Button>
 
       {/* Display the latest time as a single element */}
@@ -78,6 +99,7 @@ const Home = ({ socket }) => {
         Current Time: {latestTime || 'Waiting for time...'}
       </p>
 
+      {/* Go to Help Button */}
       <Button colorScheme="teal" mt={4}>
         <Link to="/help">Go to Help</Link>
       </Button>
@@ -85,14 +107,14 @@ const Home = ({ socket }) => {
       <h3>Received Times:</h3>
       <ul>
         {times.map((time, index) => (
-          <li key={index}>{time}</li> // Display each time in a list
+          <li key={index}>{time}</li>
         ))}
       </ul>
 
       <h3>Network Traffic:</h3>
       <ul>
         {traffic.map((trafficData, index) => (
-          <li key={index}>{trafficData}</li> // Display each traffic entry in a list
+          <li key={index}>{trafficData}</li>
         ))}
       </ul>
     </Box>
