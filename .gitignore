@@ -1,0 +1,28 @@
+# Project root gitignore
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+docs/
+*.md
+
+backend/app/deprecated/
+backend/data/
+backend/models/deprecated/
+backend/results/deprecated/
+backend/scripts/deprecated/
+backend/tests/deprecated/
+backend/*.db
