@@ -1,0 +1,36 @@
+{
+  "model_version": "v10",
+  "model_name": "v10_modern_datasets_only",
+  "training_date": "2025-10-03",
+  "scaler_type": "StandardScaler",
+  "epochs": 40,
+  "test_accuracy": 92.82,
+  "best_val_accuracy": 92.76,
+  "datasets_used": [
+    "cic-ids2018",
+    "tii-ssrc-23",
+    "unsw-nb15",
+    "ics-flow"
+  ],
+  "datasets_excluded": [
+    "nsl-kdd"
+  ],
+  "training_samples": 700108,
+  "architecture": {
+    "input_size": 35,
+    "hidden_size": 128,
+    "num_layers": 2,
+    "num_classes": 7,
+    "dropout": 0.3,
+    "bidirectional": true
+  },
+  "label_mapping": {
+    "0": "NORMAL",
+    "1": "DOS",
+    "2": "PROBE",
+    "3": "R2L",
+    "4": "U2R",
+    "5": "MALWARE",
+    "6": "EXPLOIT"
+  }
+}
