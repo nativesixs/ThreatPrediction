@@ -25,3 +25,4 @@ backend/models/deprecated/
 backend/results/deprecated/
 backend/scripts/deprecated/
 backend/tests/deprecated/
+backend/*.db
