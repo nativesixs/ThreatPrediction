@@ -1,13 +1,14 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
+from pathlib import Path
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
     
-    PROJECT_NAME: str = "Threat Prediction Backend"
+    PROJECT_NAME: str = "Network Intrusion Detection System"
     VERSION: str = "0.1.0"
-    API_PREFIX: str = "/api/v1"
+    API_PREFIX: str = "/api"
     
     CORS_ORIGINS: List[str] = [
         "http://localhost:5173",
@@ -17,16 +18,35 @@ class Settings(BaseSettings):
     ]
     
     # Database: SQLite for simplicity (supports async via aiosqlite)
-    DATABASE_URL: str = "sqlite+aiosqlite:///./threat_detection.db"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./nids.db"
     
-    MODEL_PATH: str = "./models"
-    LSTM_MODEL_FILE: str = "best_lstm_model.pth"
-    CNN_MODEL_FILE: str = "best_cnn_model.pth"
-    SCALER_FILE: str = ""  # Empty = disabled (live features have different distribution than training data)
+    # Paths
+    DATA_DIR: Path = Path("./data")
+    ZEEK_LOG_DIR: Path = Path("./data/zeek_logs")
+    ARTIFACTS_DIR: Path = Path("./artifacts")
     
+    # Model configuration
+    AUTOENCODER_MODEL_FILE: str = "autoencoder.pth"
+    SCALER_FILE: str = "scaler.pkl"
+    THRESHOLD_FILE: str = "threshold.json"
+    
+    # Zeek configuration
+    ZEEK_CONN_LOG: str = "conn.log"
+    
+    # Training configuration
+    ANOMALY_THRESHOLD_PERCENTILE: float = 95.0  # 95th percentile of reconstruction errors
+    VALIDATION_SPLIT: float = 0.2
+    BATCH_SIZE: int = 64
+    LEARNING_RATE: float = 0.001
+    MAX_EPOCHS: int = 100
+    EARLY_STOPPING_PATIENCE: int = 10
+    
+    # Feature engineering
+    NUM_FEATURES: int = 20  # Will be determined by feature extractor
+    
+    # Live monitoring
     NETWORK_INTERFACE: str = "eth0"
-    CAPTURE_BATCH_SIZE: int = 100
-    PREDICTION_BATCH_SIZE: int = 32
+    LOG_WATCH_INTERVAL: float = 1.0  # seconds
     
     LOG_LEVEL: str = "INFO"
 

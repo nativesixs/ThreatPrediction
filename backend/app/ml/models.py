@@ -1,90 +1,86 @@
+"""
+Autoencoder model for anomaly detection.
+Trained only on normal traffic to learn reconstruction of typical flows.
+"""
 import torch
 import torch.nn as nn
 
 
-class LSTMModel(nn.Module):
-    def __init__(self, input_size: int, hidden_size: int, num_layers: int, 
-                 num_classes: int, dropout: float = 0.3):
-        super(LSTMModel, self).__init__()
+class Autoencoder(nn.Module):
+    """
+    Deep autoencoder for network flow anomaly detection.
+    
+    Architecture:
+    - Encoder: progressively smaller layers compress input to latent space
+    - Decoder: mirrors encoder to reconstruct input
+    - Trained on normal traffic only using MSE loss
+    - Anomalies produce high reconstruction error
+    """
+    
+    def __init__(self, input_size: int, hidden_layers: list = None):
+        """
+        Initialize autoencoder.
         
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
+        Args:
+            input_size: Number of input features
+            hidden_layers: List of hidden layer sizes for encoder
+                          (default: [128, 64, 32, 16])
+        """
+        super(Autoencoder, self).__init__()
         
-        self.lstm = nn.LSTM(
-            input_size=input_size,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            batch_first=True,
-            dropout=dropout if num_layers > 1 else 0,
-            bidirectional=True
-        )
+        if hidden_layers is None:
+            hidden_layers = [128, 64, 32, 16]
         
-        self.dropout = nn.Dropout(dropout)
-        self.fc = nn.Linear(hidden_size * 2, num_classes)
+        self.input_size = input_size
+        self.hidden_layers = hidden_layers
         
+        # Build encoder
+        encoder_layers = []
+        prev_size = input_size
+        for hidden_size in hidden_layers:
+            encoder_layers.append(nn.Linear(prev_size, hidden_size))
+            encoder_layers.append(nn.ReLU())
+            prev_size = hidden_size
+        self.encoder = nn.Sequential(*encoder_layers)
+        
+        # Build decoder (mirror of encoder)
+        decoder_layers = []
+        reversed_layers = list(reversed(hidden_layers[:-1])) + [input_size]
+        prev_size = hidden_layers[-1]  # Start from bottleneck
+        for hidden_size in reversed_layers:
+            decoder_layers.append(nn.Linear(prev_size, hidden_size))
+            if hidden_size != input_size:  # No activation on output layer
+                decoder_layers.append(nn.ReLU())
+            prev_size = hidden_size
+        self.decoder = nn.Sequential(*decoder_layers)
+    
     def forward(self, x):
-        if len(x.shape) == 2:
-            x = x.unsqueeze(1)
+        """
+        Forward pass through autoencoder.
         
-        lstm_out, _ = self.lstm(x)
+        Args:
+            x: Input tensor of shape (batch_size, input_size)
         
-        out = lstm_out[:, -1, :]
-        
-        out = self.dropout(out)
-        out = self.fc(out)
-        
-        return out
-
-
-class CNNModel(nn.Module):
-    def __init__(self, input_size: int, num_classes: int, dropout: float = 0.3):
-        super(CNNModel, self).__init__()
-        
-        self.conv1 = nn.Conv1d(in_channels=1, out_channels=64, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm1d(64)
-        self.relu1 = nn.ReLU()
-        self.pool1 = nn.MaxPool1d(kernel_size=2)
-        
-        self.conv2 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm1d(128)
-        self.relu2 = nn.ReLU()
-        self.pool2 = nn.MaxPool1d(kernel_size=2)
-        
-        self.conv3 = nn.Conv1d(in_channels=128, out_channels=256, kernel_size=3, padding=1)
-        self.bn3 = nn.BatchNorm1d(256)
-        self.relu3 = nn.ReLU()
-        self.pool3 = nn.AdaptiveAvgPool1d(1)
-        
-        self.flatten = nn.Flatten()
-        self.dropout = nn.Dropout(dropout)
-        self.fc1 = nn.Linear(256, 128)
-        self.relu4 = nn.ReLU()
-        self.fc2 = nn.Linear(128, num_classes)
-        
-    def forward(self, x):
-        if len(x.shape) == 2:
-            x = x.unsqueeze(1)
-        
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu1(x)
-        x = self.pool1(x)
-        
-        x = self.conv2(x)
-        x = self.bn2(x)
-        x = self.relu2(x)
-        x = self.pool2(x)
-        
-        x = self.conv3(x)
-        x = self.bn3(x)
-        x = self.relu3(x)
-        x = self.pool3(x)
-        
-        x = self.flatten(x)
-        x = self.dropout(x)
-        x = self.fc1(x)
-        x = self.relu4(x)
-        x = self.dropout(x)
-        x = self.fc2(x)
-        
-        return x
+        Returns:
+            Reconstructed input tensor
+        """
+        latent = self.encoder(x)
+        reconstructed = self.decoder(latent)
+        return reconstructed
+    
+    def encode(self, x):
+        """Get latent representation."""
+        return self.encoder(x)
+    
+    def decode(self, latent):
+        """Reconstruct from latent representation."""
+        return self.decoder(latent)
+    
+    def get_architecture(self):
+        """Return architecture description."""
+        return {
+            'input_size': self.input_size,
+            'encoder_layers': self.hidden_layers,
+            'decoder_layers': list(reversed(self.hidden_layers[:-1])) + [self.input_size],
+            'bottleneck_size': self.hidden_layers[-1]
+        }

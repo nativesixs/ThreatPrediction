@@ -17,7 +17,7 @@ Thumbs.db
 logs/
 
 docs/
-*.md
+# *.md
 
 backend/app/deprecated/
 backend/data/
