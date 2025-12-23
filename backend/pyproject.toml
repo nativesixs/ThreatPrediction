@@ -41,7 +41,7 @@ capture-traffic = "app.scripts.capture_traffic:main"
 create-dataset = "app.scripts.create_dataset:main"
 train-model = "app.scripts.train_model:main"
 retrain-model = "app.scripts.retrain_model:main"
-backend-deploy = "app.main:run"
+backend-deploy = "app.main_new:run"
 
 [tool.black]
 line-length = 100
