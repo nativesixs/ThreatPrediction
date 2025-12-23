@@ -26,8 +26,8 @@ import {
 } from 'recharts';
 
 import wsService from '@/services/websocket';
-import { predictionsAPI, trafficAPI } from '@/services/api';
-import type { Prediction } from '@/types';
+import { anomaliesAPI, flowsAPI } from '@/services/api';
+import type { Anomaly } from '@/types';
 
 const COLORS = ['#4caf50', '#ff1744', '#ff9800', '#2196f3', '#9c27b0'];
 
@@ -55,9 +55,9 @@ interface TrafficStats {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ wsConnected, setWsConnected }) => {
-  const [predictions, setPredictions] = useState<Prediction[]>([]);
-  const [predictionStats, setPredictionStats] = useState<any>(null);
-  const [trafficStats, setTrafficStats] = useState<TrafficStats | null>(null);
+  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
+  const [anomalyStats, setAnomalyStats] = useState<any>(null);
+  const [flowStats, setFlowStats] = useState<TrafficStats | null>(null);
   const [recentAttacks, setRecentAttacks] = useState<any[]>([]);
   const [attacksByType, setAttacksByType] = useState<AttackTypeData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -96,18 +96,18 @@ const Dashboard: React.FC<DashboardProps> = ({ wsConnected, setWsConnected }) =>
       });
 
       // Update stats in real-time
-      setPredictionStats(prev => {
+      setAnomalyStats(prev => {
         if (!prev) return prev;
         return {
           ...prev,
-          total_predictions: (prev.total_predictions || 0) + 1,
-          total_packets: (prev.total_packets || 0) + 1,
-          total_attacks: data.prediction?.is_attack 
-            ? (prev.total_attacks || 0) + 1 
-            : prev.total_attacks,
-          benign_count: !data.prediction?.is_attack 
-            ? (prev.benign_count || 0) + 1 
-            : prev.benign_count,
+          total_anomalies: (prev.total_anomalies || 0) + 1,
+          total_flows: (prev.total_flows || 0) + 1,
+          anomalous_flows: data.prediction?.is_anomaly 
+            ? (prev.anomalous_flows || 0) + 1 
+            : prev.anomalous_flows,
+          normal_flows: !data.prediction?.is_anomaly 
+            ? (prev.normal_flows || 0) + 1 
+            : prev.normal_flows,
         };
       });
 
@@ -140,8 +140,8 @@ const Dashboard: React.FC<DashboardProps> = ({ wsConnected, setWsConnected }) =>
     // Update stats more frequently (every 5 seconds) for real-time feel
     const statsInterval = setInterval(async () => {
       try {
-        const predStatsResponse = await predictionsAPI.getStats(60);
-        setPredictionStats(predStatsResponse.data);
+        const anomalyStatsResponse = await anomaliesAPI.getStats(60);
+        setAnomalyStats(anomalyStatsResponse.data);
       } catch (error) {
         console.error('Error updating stats:', error);
       }
@@ -165,43 +165,40 @@ const Dashboard: React.FC<DashboardProps> = ({ wsConnected, setWsConnected }) =>
       const settings = getSettings();
       const maxAttacks = settings.maxRecentAttacks || 10;
 
-      // Load recent predictions
-      const predsResponse = await predictionsAPI.getRecent(maxAttacks);
-      const predsData = predsResponse.data.data || predsResponse.data;
-      setPredictions(Array.isArray(predsData) ? predsData : []);
+      // Load recent anomalies
+      const anomaliesResponse = await anomaliesAPI.getAll({ limit: maxAttacks, severity: 'CRITICAL' });
+      const anomaliesData = anomaliesResponse.data.data || anomaliesResponse.data;
+      setAnomalies(Array.isArray(anomaliesData) ? anomaliesData : []);
 
-      // Load prediction stats
-      const predStatsResponse = await predictionsAPI.getStats(60);
-      setPredictionStats(predStatsResponse.data);
+      // Load anomaly stats
+      const anomalyStatsResponse = await anomaliesAPI.getStats(60);
+      setAnomalyStats(anomalyStatsResponse.data);
 
-      // Load traffic stats
-      const statsResponse = await trafficAPI.getStats(60);
-      setTrafficStats(statsResponse.data.data || statsResponse.data);
+      // Load flow stats
+      const statsResponse = await flowsAPI.getStats(60);
+      setFlowStats(statsResponse.data.data || statsResponse.data);
 
-      // Load recent attacks with details
+      // Load recent critical anomalies for alerts
       try {
-        const attacksResponse = await predictionsAPI.getAttacksDetailed(maxAttacks);
-        const attacksData = attacksResponse.data.data || attacksResponse.data;
-        setRecentAttacks(Array.isArray(attacksData) ? attacksData : []);
+        const criticalAnomaliesResponse = await anomaliesAPI.getAll({ limit: maxAttacks, severity: 'CRITICAL' });
+        const criticalAnomaliesData = criticalAnomaliesResponse.data.data || criticalAnomaliesResponse.data;
+        setRecentAttacks(Array.isArray(criticalAnomaliesData) ? criticalAnomaliesData : []);
       } catch (error) {
-        // Fallback to regular attacks endpoint if detailed endpoint fails
-        console.warn('Detailed attacks endpoint failed, using regular endpoint', error);
-        const attacksResponse = await predictionsAPI.getAttacks(maxAttacks);
-        const attacksData = attacksResponse.data.data || attacksResponse.data;
-        setRecentAttacks(Array.isArray(attacksData) ? attacksData : []);
+        console.warn('Critical anomalies endpoint failed', error);
+        setRecentAttacks([]);
       }
 
-      // Process attack types for pie chart
-      const attackTypes: Record<string, number> = {};
-      const predsArray = Array.isArray(predsData) ? predsData : [];
-      predsArray.forEach((pred: Prediction) => {
-        if (pred.is_attack) {
-          const type = pred.predicted_class || 'Unknown';
-          attackTypes[type] = (attackTypes[type] || 0) + 1;
+      // Process anomaly severity for pie chart
+      const severityTypes: Record<string, number> = {};
+      const anomaliesArray = Array.isArray(anomaliesData) ? anomaliesData : [];
+      anomaliesArray.forEach((anomaly: Anomaly) => {
+        if (anomaly.is_anomaly) {
+          const severity = anomaly.severity || 'Unknown';
+          severityTypes[severity] = (severityTypes[severity] || 0) + 1;
         }
       });
 
-      const attacksByTypeData: AttackTypeData[] = Object.entries(attackTypes).map(([name, value]) => ({
+      const attacksByTypeData: AttackTypeData[] = Object.entries(severityTypes).map(([name, value]) => ({
         name,
         value: value as number,
       }));
@@ -216,7 +213,7 @@ const Dashboard: React.FC<DashboardProps> = ({ wsConnected, setWsConnected }) =>
     }
   };
 
-  if (loading && predictions.length === 0) {
+  if (loading && anomalies.length === 0) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
         <CircularProgress />
@@ -243,10 +240,10 @@ const Dashboard: React.FC<DashboardProps> = ({ wsConnected, setWsConnected }) =>
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
-                Total Predictions
+                Total Anomalies
               </Typography>
               <Typography variant="h4">
-                {predictionStats?.total_predictions || 0}
+                {anomalyStats?.total_anomalies || 0}
               </Typography>
             </CardContent>
           </Card>
@@ -257,10 +254,38 @@ const Dashboard: React.FC<DashboardProps> = ({ wsConnected, setWsConnected }) =>
           <Card sx={{ bgcolor: 'error.dark' }}>
             <CardContent>
               <Typography color="white" gutterBottom>
-                Attacks Detected
+                Critical Anomalies
               </Typography>
               <Typography variant="h4" color="white">
-                {predictionStats?.total_attacks || 0}
+                {anomalyStats?.by_severity?.CRITICAL || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* @ts-expect-error - MUI v7 Grid type compatibility */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ bgcolor: 'warning.dark' }}>
+            <CardContent>
+              <Typography color="white" gutterBottom>
+                High Severity
+              </Typography>
+              <Typography variant="h4" color="white">
+                {anomalyStats?.by_severity?.HIGH || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* @ts-expect-error - MUI v7 Grid type compatibility */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ bgcolor: 'info.dark' }}>
+            <CardContent>
+              <Typography color="white" gutterBottom>
+                Medium Severity  
+              </Typography>
+              <Typography variant="h4" color="white">
+                {anomalyStats?.by_severity?.MEDIUM || 0}
               </Typography>
             </CardContent>
           </Card>
@@ -271,10 +296,24 @@ const Dashboard: React.FC<DashboardProps> = ({ wsConnected, setWsConnected }) =>
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
-                Total Packets
+                Low Severity
               </Typography>
               <Typography variant="h4">
-                {predictionStats?.total_packets || 0}
+                {anomalyStats?.by_severity?.LOW || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* @ts-expect-error - MUI v7 Grid type compatibility */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                Total Flows
+              </Typography>
+              <Typography variant="h4">
+                {flowStats?.total_flows || 0}
               </Typography>
             </CardContent>
           </Card>
@@ -353,7 +392,7 @@ const Dashboard: React.FC<DashboardProps> = ({ wsConnected, setWsConnected }) =>
         </Grid>
 
         {/* Protocol Distribution */}
-        {trafficStats && (
+        {flowStats && (
           // @ts-expect-error - MUI v7 Grid type compatibility
           <Grid item xs={12} md={6}>
             <Paper sx={{ p: 2 }}>
@@ -362,7 +401,7 @@ const Dashboard: React.FC<DashboardProps> = ({ wsConnected, setWsConnected }) =>
               </Typography>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart
-                  data={Object.entries(trafficStats.protocols || {}).map(([name, value]) => ({
+                  data={Object.entries(flowStats.by_protocol || {}).map(([name, value]) => ({
                     name,
                     value,
                   }))}

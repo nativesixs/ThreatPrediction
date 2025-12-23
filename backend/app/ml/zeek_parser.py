@@ -20,7 +20,7 @@ class ZeekLogParser:
         'proto', 'service', 'duration', 'orig_bytes', 'resp_bytes',
         'conn_state', 'local_orig', 'local_resp', 'missed_bytes',
         'history', 'orig_pkts', 'orig_ip_bytes', 'resp_pkts', 'resp_ip_bytes',
-        'tunnel_parents'
+        'tunnel_parents', 'ip_proto'  # ip_proto added in Zeek 8.0+
     ]
     
     def __init__(self, field_separator: str = '\t', unset_field: str = '-'):

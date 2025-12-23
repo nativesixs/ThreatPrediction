@@ -116,3 +116,31 @@ async def get_flow_stats(
             "total_bytes": total_bytes,
             "total_packets": total_packets
         }
+
+
+@router.delete("/flows/clear")
+async def clear_flows(confirm: bool = Query(default=False)):
+    """Clear all flow data."""
+    from sqlalchemy import delete, func
+    from fastapi import HTTPException
+    
+    if not confirm:
+        raise HTTPException(
+            status_code=400, 
+            detail="Must set confirm=true to delete data. This action cannot be undone!"
+        )
+    
+    async with async_session_maker() as session:
+        # Count before deletion
+        count_query = select(func.count(Flow.id))
+        result = await session.execute(count_query)
+        total_count = result.scalar() or 0
+        
+        # Delete all flows
+        await session.execute(delete(Flow))
+        await session.commit()
+        
+        return {
+            "message": "All flows cleared successfully",
+            "deleted_count": total_count
+        }

@@ -83,9 +83,15 @@ async def create_dataset(
                 # Create Flow objects
                 flow_objects = []
                 for flow_data, features in zip(batch_flows, batch_features):
+                    uid = flow_data['uid']
+                    # Check for UID in database before inserting
+                    existing = await session.execute(select(Flow).where(Flow.uid == uid))
+                    if existing.scalar():
+                        logger.debug(f"Duplicate UID {uid} found in database, skipping.")
+                        continue
                     flow_obj = Flow(
                         timestamp=flow_data['timestamp'],
-                        uid=flow_data['uid'],
+                        uid=uid,
                         orig_ip=flow_data['orig_ip'],
                         orig_port=flow_data['orig_port'],
                         resp_ip=flow_data['resp_ip'],

@@ -1,7 +1,7 @@
 """
 Anomalies and predictions API endpoints.
 """
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException
 from sqlalchemy import select, and_, desc
 from datetime import datetime, timedelta
 from typing import Optional
@@ -80,10 +80,17 @@ async def get_anomalies(
 
 @router.get("/anomalies/stats")
 async def get_anomaly_stats(
-    hours: int = Query(24, ge=1, le=168)
+    minutes: int = Query(60, ge=1, le=10080),  # Support minutes parameter from frontend
+    hours: int = Query(None, ge=1, le=168)      # Keep hours for backward compatibility
 ):
     """Get anomaly statistics."""
-    start_time = datetime.now() - timedelta(hours=hours)
+    # Use minutes if provided, otherwise use hours (convert to minutes)
+    if hours is not None:
+        time_period_minutes = hours * 60
+    else:
+        time_period_minutes = minutes
+    
+    start_time = datetime.now() - timedelta(minutes=time_period_minutes)
     
     async with async_session_maker() as session:
         # Get all anomalies in time range
@@ -111,7 +118,8 @@ async def get_anomaly_stats(
         false_positives = sum(1 for a in anomalies if a.false_positive)
         
         return {
-            "time_range_hours": hours,
+            "time_range_minutes": time_period_minutes,
+            "time_range_hours": time_period_minutes / 60,
             "start_time": start_time.isoformat(),
             "total_anomalies": total,
             "by_severity": severity_counts,
@@ -155,4 +163,31 @@ async def update_anomaly(
             "investigated": anomaly.investigated,
             "false_positive": anomaly.false_positive,
             "notes": anomaly.notes
+        }
+
+
+@router.delete("/anomalies/clear")
+async def clear_anomalies(confirm: bool = Query(default=False)):
+    """Clear all anomaly data."""
+    from sqlalchemy import delete, func
+    
+    if not confirm:
+        raise HTTPException(
+            status_code=400, 
+            detail="Must set confirm=true to delete data. This action cannot be undone!"
+        )
+    
+    async with async_session_maker() as session:
+        # Count before deletion
+        count_query = select(func.count(Anomaly.id))
+        result = await session.execute(count_query)
+        total_count = result.scalar() or 0
+        
+        # Delete all anomalies
+        await session.execute(delete(Anomaly))
+        await session.commit()
+        
+        return {
+            "message": "All anomalies cleared successfully",
+            "deleted_count": total_count
         }

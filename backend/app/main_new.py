@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import init_db
-from app.api import admin, metrics, predictions, traffic, websocket
+from app.api import admin_new as admin, metrics_new as metrics, predictions_new as predictions, traffic_new as traffic, websocket_new as websocket
 from app.ml.anomaly_detector import load_detector, get_anomaly_detector
 from app.services.log_watcher import LogWatcher
 
@@ -174,7 +174,7 @@ def run():
     """Run application (for poetry script)."""
     import uvicorn
     uvicorn.run(
-        "app.main:app",
+        "app.main_new:app",
         host="0.0.0.0",
         port=8000,
         reload=False,

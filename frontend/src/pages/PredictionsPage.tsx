@@ -15,20 +15,21 @@ import {
   MenuItem,
   CircularProgress,
 } from '@mui/material';
-import { predictionsAPI } from '@/services/api';
+import { anomaliesAPI } from '@/services/api';
+import type { Anomaly } from '@/types';
 
 const PredictionsPage: React.FC = () => {
-  const [predictions, setPredictions] = useState<any[]>([]);
+  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [page, setPage] = useState<number>(0);
   const [rowsPerPage, setRowsPerPage] = useState<number>(25);
   const [filter, setFilter] = useState<string>('all');
 
   useEffect(() => {
-    loadPredictions();
+    loadAnomalies();
   }, [filter, page, rowsPerPage]);
 
-  const loadPredictions = async () => {
+  const loadAnomalies = async () => {
     try {
       setLoading(true);
       const params: any = {
@@ -36,15 +37,15 @@ const PredictionsPage: React.FC = () => {
         skip: page * rowsPerPage,
       };
 
-      if (filter !== 'all') {
-        params.is_attack = filter === 'attacks';
+      if (filter === 'attacks') {
+        params.severity = 'CRITICAL';
       }
 
-      const response = await predictionsAPI.getAll(params);
+      const response = await anomaliesAPI.getAll(params);
       const data = (response.data as any).data || response.data || [];
-      setPredictions(Array.isArray(data) ? data : []);
+      setAnomalies(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Error loading predictions:', error);
+      console.error('Error loading anomalies:', error);
     } finally {
       setLoading(false);
     }
@@ -62,7 +63,7 @@ const PredictionsPage: React.FC = () => {
   return (
     <Box>
       <Typography variant="h4" gutterBottom>
-        Prediction History
+        Anomaly History
       </Typography>
 
       <Box sx={{ mb: 2 }}>
@@ -73,9 +74,8 @@ const PredictionsPage: React.FC = () => {
           onChange={(e) => setFilter(e.target.value)}
           sx={{ minWidth: 200 }}
         >
-          <MenuItem value="all">All Predictions</MenuItem>
-          <MenuItem value="attacks">Attacks Only</MenuItem>
-          <MenuItem value="benign">Benign Only</MenuItem>
+          <MenuItem value="all">All Anomalies</MenuItem>
+          <MenuItem value="attacks">Critical Only</MenuItem>
         </TextField>
       </Box>
 
@@ -89,42 +89,36 @@ const PredictionsPage: React.FC = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Timestamp</TableCell>
-                <TableCell>Model</TableCell>
-                <TableCell>Prediction</TableCell>
-                <TableCell>Confidence</TableCell>
+                <TableCell>Reconstruction Error</TableCell>
+                <TableCell>Anomaly Score</TableCell>
+                <TableCell>Severity</TableCell>
                 <TableCell>Type</TableCell>
-                <TableCell>Processing Time</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {predictions.map((pred) => (
-                <TableRow key={pred.id}>
+              {anomalies.map((anomaly) => (
+                <TableRow key={anomaly.id}>
                   <TableCell>
-                    {new Date(pred.timestamp).toLocaleString()}
+                    {new Date(anomaly.timestamp).toLocaleString()}
                   </TableCell>
-                  <TableCell>{pred.model_name}</TableCell>
-                  <TableCell>{pred.predicted_class}</TableCell>
-                  <TableCell>
-                    {(pred.confidence_score * 100).toFixed(2)}%
-                  </TableCell>
+                  <TableCell>{anomaly.reconstruction_error.toFixed(4)}</TableCell>
+                  <TableCell>{anomaly.anomaly_score.toFixed(4)}</TableCell>
                   <TableCell>
                     <Chip
-                      label={pred.is_attack ? 'Attack' : 'Benign'}
-                      color={pred.is_attack ? 'error' : 'success'}
+                      label={anomaly.severity}
+                      color={anomaly.severity === 'CRITICAL' ? 'error' : anomaly.severity === 'HIGH' ? 'warning' : 'primary'}
                       size="small"
                     />
                   </TableCell>
                   <TableCell>
-                    {pred.processing_time_ms 
-                      ? `${pred.processing_time_ms.toFixed(2)}ms`
-                      : 'N/A'}
+                    {anomaly.is_anomaly ? 'Anomaly' : 'Normal'}
                   </TableCell>
                 </TableRow>
               ))}
-              {predictions.length === 0 && (
+              {anomalies.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">
-                    No predictions found
+                  <TableCell colSpan={5} align="center">
+                    No anomalies found
                   </TableCell>
                 </TableRow>
               )}
@@ -133,7 +127,7 @@ const PredictionsPage: React.FC = () => {
           <TablePagination
             rowsPerPageOptions={[10, 25, 50, 100]}
             component="div"
-            count={-1}
+            count={anomalies.length}
             rowsPerPage={rowsPerPage}
             page={page}
             onPageChange={handleChangePage}

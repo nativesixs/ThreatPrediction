@@ -14,6 +14,7 @@ from app.models.database_models import Flow, Anomaly
 from app.ml.zeek_parser import ZeekLogParser
 from app.ml.flow_feature_extractor import FlowFeatureExtractor
 from app.ml.anomaly_detector import AnomalyDetector
+from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +98,15 @@ class LogWatcher:
                 for flow_data, flow_features, prediction in zip(
                     new_flows, features, predictions
                 ):
+                    # Check if flow already exists (avoid duplicates)
+                    existing_flow = await session.scalar(
+                        select(Flow).where(Flow.uid == flow_data['uid'])
+                    )
+                    
+                    if existing_flow:
+                        logger.debug(f"Flow {flow_data['uid']} already exists, skipping")
+                        continue
+                        
                     # Create flow record
                     flow = Flow(
                         timestamp=flow_data['timestamp'],
@@ -122,19 +132,20 @@ class LogWatcher:
                     session.add(flow)
                     await session.flush()  # Get flow.id
                     
-                    # If anomaly, create anomaly record
+                    # Create anomaly record for ALL flows (normal and anomalous)
+                    anomaly = Anomaly(
+                        timestamp=datetime.now(),
+                        flow_id=flow.id,
+                        reconstruction_error=prediction['reconstruction_error'],
+                        threshold=prediction['threshold'],
+                        anomaly_score=prediction['anomaly_score'],
+                        is_anomaly=prediction['is_anomaly'],
+                        model_id=prediction['model_id'],
+                        severity=prediction['severity']
+                    )
+                    session.add(anomaly)
+                    
                     if prediction['is_anomaly']:
-                        anomaly = Anomaly(
-                            timestamp=datetime.now(),
-                            flow_id=flow.id,
-                            reconstruction_error=prediction['reconstruction_error'],
-                            threshold=prediction['threshold'],
-                            anomaly_score=prediction['anomaly_score'],
-                            is_anomaly=True,
-                            model_id=prediction['model_id'],
-                            severity=prediction['severity']
-                        )
-                        session.add(anomaly)
                         self.anomalies_detected += 1
                     
                     self.flows_processed += 1

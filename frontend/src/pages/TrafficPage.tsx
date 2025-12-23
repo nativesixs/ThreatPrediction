@@ -15,35 +15,35 @@ import {
   Card,
   CardContent,
 } from '@mui/material';
-import { trafficAPI } from '@/services/api';
+import { flowsAPI } from '@/services/api';
 
 const TrafficPage: React.FC = () => {
-  const [traffic, setTraffic] = useState<any[]>([]);
+  const [flows, setFlows] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [page, setPage] = useState<number>(0);
   const [rowsPerPage, setRowsPerPage] = useState<number>(25);
 
   useEffect(() => {
-    loadTrafficData();
+    loadFlowData();
   }, [page, rowsPerPage]);
 
-  const loadTrafficData = async () => {
+  const loadFlowData = async () => {
     try {
       setLoading(true);
       
-      const [trafficResponse, statsResponse] = await Promise.all([
-        trafficAPI.getAll({
+      const [flowsResponse, statsResponse] = await Promise.all([
+        flowsAPI.getAll({
           limit: rowsPerPage,
           skip: page * rowsPerPage,
         }),
-        trafficAPI.getStats(60),
+        flowsAPI.getStats(60),
       ]);
 
-      setTraffic((trafficResponse.data as any).data || trafficResponse.data || []);
+      setFlows((flowsResponse.data as any).data || flowsResponse.data || []);
       setStats((statsResponse.data as any).data || statsResponse.data || null);
     } catch (error) {
-      console.error('Error loading traffic data:', error);
+      console.error('Error loading flow data:', error);
     } finally {
       setLoading(false);
     }
@@ -128,23 +128,23 @@ const TrafficPage: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {traffic.map((log) => (
-                <TableRow key={log.id}>
+              {flows.map((flow) => (
+                <TableRow key={flow.id}>
                   <TableCell>
-                    {new Date(log.timestamp).toLocaleString()}
+                    {new Date(flow.timestamp).toLocaleString()}
                   </TableCell>
-                  <TableCell>{log.source_ip}</TableCell>
-                  <TableCell>{log.destination_ip}</TableCell>
-                  <TableCell>{log.protocol}</TableCell>
-                  <TableCell>{log.source_port}</TableCell>
-                  <TableCell>{log.destination_port}</TableCell>
-                  <TableCell>{log.packet_length}</TableCell>
+                  <TableCell>{flow.source_ip}</TableCell>
+                  <TableCell>{flow.destination_ip}</TableCell>
+                  <TableCell>{flow.source_port || 'N/A'}</TableCell>
+                  <TableCell>{flow.destination_port || 'N/A'}</TableCell>
+                  <TableCell>{flow.protocol}</TableCell>
+                  <TableCell>{flow.packet_length || 0}</TableCell>
                 </TableRow>
               ))}
-              {traffic.length === 0 && (
+              {flows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} align="center">
-                    No traffic data found
+                    No flow data found
                   </TableCell>
                 </TableRow>
               )}
@@ -153,7 +153,7 @@ const TrafficPage: React.FC = () => {
           <TablePagination
             rowsPerPageOptions={[10, 25, 50, 100]}
             component="div"
-            count={-1}
+            count={flows.length}
             rowsPerPage={rowsPerPage}
             page={page}
             onPageChange={handleChangePage}

@@ -1,5 +1,3 @@
-/// <reference types="vite/client" />
-
 import axios, { AxiosResponse } from 'axios';
 import type { 
   Prediction, 
@@ -10,7 +8,7 @@ import type {
 } from '@/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const API_PREFIX = '/api/v1';
+const API_PREFIX = '/api';
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}${API_PREFIX}`,
@@ -25,32 +23,30 @@ interface QueryParams {
   [key: string]: any;
 }
 
-// Predictions API
-export const predictionsAPI = {
-  getAll: (params: QueryParams = {}): Promise<AxiosResponse<ApiResponse<Prediction[]>>> => 
-    api.get('/predictions', { params }),
-  getRecent: (minutes: number = 5): Promise<AxiosResponse<ApiResponse<Prediction[]>>> => 
-    api.get(`/predictions/recent?minutes=${minutes}`),
-  getAttacks: (limit: number = 100): Promise<AxiosResponse<ApiResponse<Prediction[]>>> => 
-    api.get(`/predictions/attacks?limit=${limit}`),
-  getAttacksDetailed: (limit: number = 100): Promise<AxiosResponse<ApiResponse<any[]>>> => 
-    api.get(`/predictions/attacks/detailed?limit=${limit}`),
+// Anomalies API (replaces Predictions)
+export const anomaliesAPI = {
+  getAll: (params: QueryParams = {}): Promise<AxiosResponse<ApiResponse<any[]>>> => 
+    api.get('/anomalies', { params }),
+  getRecent: (minutes: number = 5): Promise<AxiosResponse<ApiResponse<any[]>>> => 
+    api.get(`/anomalies/recent?minutes=${minutes}`),
+  getCritical: (limit: number = 100): Promise<AxiosResponse<ApiResponse<any[]>>> => 
+    api.get(`/anomalies?severity=CRITICAL&limit=${limit}`),
   getStats: (minutes: number = 60): Promise<AxiosResponse<ApiResponse<any>>> => 
-    api.get(`/predictions/stats?minutes=${minutes}`),
-  getById: (id: string | number): Promise<AxiosResponse<ApiResponse<Prediction>>> => 
-    api.get(`/predictions/${id}`),
+    api.get(`/anomalies/stats?minutes=${minutes}`),
+  getById: (id: string | number): Promise<AxiosResponse<ApiResponse<any>>> => 
+    api.get(`/anomalies/${id}`),
 };
 
-// Traffic API
-export const trafficAPI = {
-  getAll: (params: QueryParams = {}): Promise<AxiosResponse<ApiResponse<TrafficLog[]>>> => 
-    api.get('/traffic', { params }),
-  getRecent: (minutes: number = 5): Promise<AxiosResponse<ApiResponse<TrafficLog[]>>> => 
-    api.get(`/traffic/recent?minutes=${minutes}`),
+// Flows API (replaces Traffic)
+export const flowsAPI = {
+  getAll: (params: QueryParams = {}): Promise<AxiosResponse<ApiResponse<any[]>>> => 
+    api.get('/flows', { params }),
+  getRecent: (minutes: number = 5): Promise<AxiosResponse<ApiResponse<any[]>>> => 
+    api.get(`/flows/recent?minutes=${minutes}`),
   getStats: (minutes: number = 60): Promise<AxiosResponse<ApiResponse<any>>> => 
-    api.get(`/traffic/stats?minutes=${minutes}`),
-  getById: (id: string | number): Promise<AxiosResponse<ApiResponse<TrafficLog>>> => 
-    api.get(`/traffic/${id}`),
+    api.get(`/flows/stats?minutes=${minutes}`),
+  getById: (id: string | number): Promise<AxiosResponse<ApiResponse<any>>> => 
+    api.get(`/flows/${id}`),
 };
 
 // Metrics API
@@ -73,10 +69,10 @@ export const healthAPI = {
 export const adminAPI = {
   clearAll: (): Promise<AxiosResponse<any>> => 
     api.delete('/admin/clear-all?confirm=true'),
-  clearPredictions: (): Promise<AxiosResponse<any>> => 
-    api.delete('/predictions/clear?confirm=true'),
-  clearTraffic: (): Promise<AxiosResponse<any>> => 
-    api.delete('/traffic/clear?confirm=true'),
+  clearAnomalies: (): Promise<AxiosResponse<any>> => 
+    api.delete('/anomalies/clear?confirm=true'),
+  clearFlows: (): Promise<AxiosResponse<any>> => 
+    api.delete('/flows/clear?confirm=true'),
   getStats: (): Promise<AxiosResponse<any>> => 
     api.get('/admin/stats'),
 };

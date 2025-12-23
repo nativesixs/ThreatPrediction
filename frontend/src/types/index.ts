@@ -1,4 +1,28 @@
 // Prediction types
+// Anomaly types (new backend)
+export interface Anomaly {
+  id: number;
+  timestamp: string;
+  flow_id?: number;
+  reconstruction_error: number;
+  threshold: number;
+  anomaly_score: number;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  is_anomaly: boolean;
+}
+
+// Flow types (new backend)
+export interface Flow {
+  id: number;
+  timestamp: string;
+  source_ip: string;
+  destination_ip: string;
+  source_port?: number;
+  destination_port?: number;
+  protocol: string;
+  packet_length: number;
+  features?: Record<string, any>;
+}
 export interface Prediction {
   id: number;
   timestamp: string;

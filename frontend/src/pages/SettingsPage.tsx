@@ -100,10 +100,10 @@ const SettingsPage: React.FC = () => {
           response = await adminAPI.clearAll();
           break;
         case 'predictions':
-          response = await adminAPI.clearPredictions();
+          response = await adminAPI.clearAnomalies();
           break;
         case 'traffic':
-          response = await adminAPI.clearTraffic();
+          response = await adminAPI.clearFlows();
           break;
       }
 

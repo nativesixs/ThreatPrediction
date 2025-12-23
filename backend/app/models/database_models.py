@@ -100,4 +100,4 @@ class Model(Base):
     is_active = Column(Boolean, default=False, index=True)
     
     # Additional metadata
-    metadata = Column(JSON, nullable=True)
+    model_metadata = Column(JSON, nullable=True)

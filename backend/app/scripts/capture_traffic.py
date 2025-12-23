@@ -44,18 +44,34 @@ def capture_traffic(
     else:
         logger.info(f"  Duration: indefinite (until interrupted)")
     
-    # Check if Zeek is installed
-    try:
-        result = subprocess.run(
-            ['zeek', '--version'],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        logger.info(f"Zeek version: {result.stdout.strip()}")
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        logger.error("Zeek is not installed or not in PATH")
+    # Find Zeek binary
+    zeek_binary = None
+    possible_paths = [
+        '/opt/zeek/bin/zeek',  # Standard installation
+        '/usr/bin/zeek',       # Package manager
+        '/usr/local/bin/zeek', # Manual install
+        'zeek'                 # In PATH
+    ]
+    
+    for path in possible_paths:
+        try:
+            result = subprocess.run(
+                [path, '--version'],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            zeek_binary = path
+            logger.info(f"Zeek version: {result.stdout.strip()}")
+            logger.info(f"Using Zeek binary: {zeek_binary}")
+            break
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            continue
+    
+    if not zeek_binary:
+        logger.error("Zeek is not installed or not found")
         logger.error("Install Zeek: https://zeek.org/get-zeek/")
+        logger.error("Checked paths: " + ", ".join(possible_paths[:-1]))
         return
     
     # Build Zeek command
@@ -64,22 +80,27 @@ def capture_traffic(
     # -C: ignore checksums (useful for VMs/Docker)
     # local: load local configuration
     zeek_cmd = [
-        'zeek',
+        zeek_binary,  # Use full path to Zeek
         '-i', interface,
         '-C',  # Ignore checksums
         'local'  # Load local configuration
     ]
     
     logger.info(f"Starting Zeek: {' '.join(zeek_cmd)}")
-    logger.info(f"Logs will be written to current directory (move to {output_dir})")
+    logger.info(f"Logs will be appended to {output_dir}/conn.log")
     logger.info("Note: You may need sudo privileges to capture on interface")
     logger.info("Press Ctrl+C to stop capture")
     
     # Start Zeek process
     try:
-        # Change to output directory
+        # Create timestamped subdirectory to avoid overwriting
         import os
-        os.chdir(output_dir)
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        temp_dir = (output_dir / f'capture_{timestamp}').resolve()  # Absolute path
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        os.chdir(temp_dir)
+        logger.info(f"Zeek running in temporary directory: {temp_dir}")
         
         process = subprocess.Popen(
             zeek_cmd,
@@ -132,6 +153,31 @@ def capture_traffic(
             process.terminate()
             process.wait(timeout=10)
             logger.info("Capture completed successfully")
+            
+            # Append conn.log to main file
+            temp_conn_log = temp_dir / 'conn.log'
+            main_conn_log = output_dir.resolve() / 'conn.log'  # Absolute path
+            
+            if temp_conn_log.exists():
+                logger.info(f"Appending captured flows to {main_conn_log}")
+                
+                # Read new flows (skip header lines starting with #)
+                with open(temp_conn_log, 'r') as f:
+                    lines = [line for line in f if not line.startswith('#')]
+                
+                # Append to main conn.log
+                with open(main_conn_log, 'a') as f:
+                    f.writelines(lines)
+                
+                logger.info(f"Appended {len(lines)} flow records to main log")
+            else:
+                logger.warning(f"No conn.log found in {temp_dir}")
+            
+            # Clean up temp directory
+            import shutil
+            os.chdir(output_dir.resolve())  # Go back to output dir before deleting
+            shutil.rmtree(temp_dir)
+            logger.info(f"Cleaned up temporary directory {temp_dir}")
         
         else:
             # Run indefinitely until interrupted
